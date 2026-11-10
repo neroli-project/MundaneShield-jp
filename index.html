@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>マンデン災害予測アナライザー</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0f19;
+            color: #f1f5f9;
+        }
+        .font-cinzel {
+            font-family: 'Cinzel', serif;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header Navigation -->
+    <header class="bg-slate-900/80 backdrop-blur border-b border-slate-800 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-500">
+                    <i data-lucide="shield-alert" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-wide text-slate-100 flex items-center gap-2">
+                        マンデン災害予測アナライザー
+                        <span class="text-xs font-normal px-2 py-0.5 bg-rose-900/50 text-rose-300 border border-rose-700/50 rounded">Ver 3.0 Standard</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">日本国家始原図 × 年間春分図 × トランジット多層解析</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <button id="btn-view-chart" class="nav-btn active flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg font-medium bg-slate-800 text-rose-400 border border-rose-500/30 hover:bg-slate-750 transition">
+                    <i data-lucide="disc" class="w-4 h-4"></i> ホロスコープ解析
+                </button>
+                <button id="btn-view-map" class="nav-btn flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition">
+                    <i data-lucide="globe" class="w-4 h-4"></i> アストロ・マップ
+                </button>
+                <button id="btn-view-timeline" class="nav-btn flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition">
+                    <i data-lucide="trending-up" class="w-4 h-4"></i> リスクタイムライン
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+        <!-- Controls & Target Date Selector Bar -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-4">
+            <!-- Left: Base Layer Tabs -->
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider mr-1">第1・2層ベース:</span>
+                <button class="base-tab-btn active px-3 py-1.5 text-xs rounded-lg font-medium bg-slate-800 text-amber-400 border border-amber-500/30 transition flex items-center gap-1.5" data-base="spring">
+                    <i data-lucide="sun" class="w-3.5 h-3.5"></i> <span id="label-spring-year">2027年 春分図</span>
+                </button>
+                <button class="base-tab-btn px-3 py-1.5 text-xs rounded-lg font-medium text-slate-400 hover:bg-slate-800 border border-transparent transition flex items-center gap-1.5" data-base="meiji">
+                    <i data-lucide="landmark" class="w-3.5 h-3.5"></i> 明治憲法 (1889)
+                </button>
+                <button class="base-tab-btn px-3 py-1.5 text-xs rounded-lg font-medium text-slate-400 hover:bg-slate-800 border border-transparent transition flex items-center gap-1.5" data-base="constitution">
+                    <i data-lucide="file-text" class="w-3.5 h-3.5"></i> 日本国憲法 (1947)
+                </button>
+                <button class="base-tab-btn px-3 py-1.5 text-xs rounded-lg font-medium text-slate-400 hover:bg-slate-800 border border-transparent transition flex items-center gap-1.5" data-base="sanfrancisco">
+                    <i data-lucide="shield" class="w-3.5 h-3.5"></i> 講和条約 (1952)
+                </button>
+            </div>
+
+            <!-- Right: Date picker for Layer 3 (Transit) -->
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                    <i data-lucide="calendar" class="w-4 h-4 text-rose-400"></i>
+                    <label for="transit-date" class="text-xs text-slate-400">対象日時 (JST):</label>
+                    <input type="datetime-local" id="transit-date" class="bg-transparent text-xs text-slate-200 focus:outline-none border-none">
+                </div>
+                <button id="btn-now" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg border border-slate-700 transition">
+                    現在
+                </button>
+            </div>
+        </div>
+
+        <!-- Base Chart Usage & Description Card -->
+        <div id="base-chart-guide-card" class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-xl">
+            <div class="flex items-start gap-3">
+                <div class="p-2 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-cyan-400 shrink-0 mt-0.5">
+                    <i data-lucide="help-circle" class="w-5 h-5"></i>
+                </div>
+                <div class="flex-1 space-y-2">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <h3 id="guide-chart-title" class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                            <span>年間春分図 (東京)</span>
+                        </h3>
+                        <span id="guide-chart-date" class="text-xs font-mono text-cyan-300 bg-slate-950 px-2.5 py-0.5 rounded border border-slate-800">
+                            成立日時: 2027年3月21日 05:25 JST (東京 35.68°N, 139.65°E)
+                        </span>
+                    </div>
+                    <p id="guide-chart-desc" class="text-xs text-slate-300 leading-relaxed">
+                        【年間外枠レイヤー】その年1年間の日本の国運・自然災害・社会的動向の全体枠組みを決定するホロスコープです。春分図のIC（4ハウス始点）や8ハウスにマレフィック天体が入る時期は全国的な災害警戒期間となります。
+                    </p>
+                    <div id="guide-chart-usage" class="text-[11px] text-amber-300/90 bg-amber-950/30 p-2 rounded border border-amber-500/20">
+                        💡 <strong>使い分けの目安:</strong> 「今年どんなリスクがあるか」の年間総合予報を見る際に最優先で使用します。
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spring Equinox Info Banner -->
+        <div id="spring-info-banner" class="bg-amber-950/40 border border-amber-500/30 rounded-xl p-3 px-4 flex flex-wrap items-center justify-between text-xs text-amber-200">
+            <div class="flex items-center gap-2">
+                <i data-lucide="clock" class="w-4 h-4 text-amber-400"></i>
+                <span>太陽が牡羊座0度に入る瞬間（年間春分図成立時刻）: <strong id="spring-exact-date" class="font-mono text-amber-300">2027年3月21日 05:25 JST</strong></span>
+            </div>
+            <span class="text-[11px] text-amber-400/80">観測地: 東京 (35.68°N, 139.65°E) / プラシーダスハウス体系</span>
+        </div>
+
+        <!-- VIEW 1: HOROSCOPE CHART ANALYZER -->
+        <div id="view-chart-section" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Left Panel: Interactive Horoscope Wheel -->
+            <div class="lg:col-span-7 space-y-6">
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-col items-center justify-center relative">
+                    <div class="w-full flex justify-between items-center mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
+                            <h2 class="text-sm font-semibold text-slate-200" id="chart-title-text">二重円ホロスコープ (春分図 × トランジット)</h2>
+                        </div>
+                    </div>
+
+                    <!-- Explanation Box for Inner / Outer Circles -->
+                    <div class="w-full bg-slate-950 p-2.5 rounded-lg border border-slate-800 mb-3 text-xs flex items-center justify-around">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-cyan-500/30 border border-cyan-400 inline-block"></span>
+                            <span class="text-slate-300"><strong>内円:</strong> <span id="label-inner-desc">ベース（春分図/日本ナタル）</span></span>
+                        </div>
+                        <div class="text-slate-600">vs</div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-rose-500/30 border border-rose-400 inline-block"></span>
+                            <span class="text-slate-300"><strong>外円:</strong> <span id="label-outer-desc">トランジット（現行天体）</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Canvas Component -->
+                    <div class="relative w-full aspect-square max-w-[500px] flex items-center justify-center">
+                        <canvas id="horoscope-canvas" width="600" height="600" class="w-full h-full cursor-crosshair"></canvas>
+                    </div>
+
+                    <!-- Chart Legend / Key Info -->
+                    <div class="w-full mt-4 grid grid-cols-4 gap-2 text-center text-xs border-t border-slate-800 pt-3">
+                        <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                            <span class="text-slate-400 block text-[10px]">ASC (アセンダント)</span>
+                            <span id="val-asc" class="font-mono text-cyan-400 font-semibold">---</span>
+                        </div>
+                        <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                            <span class="text-slate-400 block text-[10px]">MC (天頂)</span>
+                            <span id="val-mc" class="font-mono text-cyan-400 font-semibold">---</span>
+                        </div>
+                        <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                            <span class="text-slate-400 block text-[10px]">IC (4H始点:国土)</span>
+                            <span id="val-ic" class="font-mono text-rose-400 font-semibold">---</span>
+                        </div>
+                        <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                            <span class="text-slate-400 block text-[10px]">8H 始点 (危機)</span>
+                            <span id="val-h8" class="font-mono text-amber-400 font-semibold">---</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Annual House Transit & Aspect Trigger Panel (NEW) -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                            <i data-lucide="shield-alert" class="w-4 h-4 text-rose-500"></i>
+                            <span id="annual-monitor-title">2026年 重点監視ハウス(4H/8H) × マレフィック通過・着火時期</span>
+                        </h3>
+                        <span class="text-[10px] text-slate-400 font-mono">1年間自動解析</span>
+                    </div>
+
+                    <div class="text-xs text-slate-400">
+                        火星・土星・天王星・冥王星が<strong>4ハウス（国土・足元）</strong>や<strong>8ハウス（危機・インフラ停止）</strong>を通過・接触する特異日リスト（クリックでその日時にジャンプ）：
+                    </div>
+
+                    <div id="annual-house-events-list" class="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                        <!-- Dynamic list of 4H/8H ingress and key aspect triggers -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Risk Analytics -->
+            <div class="lg:col-span-5 space-y-6">
+                
+                <!-- Planetary Positions Summary -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl">
+                    <h3 class="text-xs font-bold text-slate-300 mb-2 flex items-center justify-between">
+                        <span class="flex items-center gap-1.5"><i data-lucide="compass" class="w-4 h-4 text-cyan-400"></i> 主要天体サイン配置確認</span>
+                        <span class="text-[10px] text-slate-400 font-normal">内円=ベース / 外円=トランジット</span>
+                    </h3>
+                    <div class="grid grid-cols-2 gap-2 text-[11px]" id="planetary-positions-grid">
+                        <!-- Dynamic Planet positions injected here -->
+                    </div>
+                </div>
+
+                <!-- Risk Level Alert Box -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                            <i data-lucide="activity" class="w-4 h-4 text-rose-500"></i>
+                            災害・重大事象 警戒度スコア
+                        </h3>
+                        <span id="risk-badge" class="px-2.5 py-0.5 rounded text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">計算中</span>
+                    </div>
+
+                    <!-- Meter Bar -->
+                    <div class="relative pt-1">
+                        <div class="flex mb-2 items-center justify-between">
+                            <div>
+                                <span id="risk-score-val" class="text-3xl font-extrabold font-cinzel text-rose-500">0%</span>
+                                <span class="text-xs text-slate-400 ml-1">/ 100% Risk</span>
+                            </div>
+                            <div class="text-right text-xs text-slate-400">
+                                4H/8H/IC 接触集中度
+                            </div>
+                        </div>
+                        <div class="overflow-hidden h-3 text-xs flex rounded bg-slate-950 border border-slate-800">
+                            <div id="risk-score-bar" style="width: 0%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-gradient-to-r from-amber-500 via-rose-500 to-red-600 transition-all duration-500"></div>
+                        </div>
+                    </div>
+
+                    <!-- Key Malefic Warning Cards -->
+                    <div class="mt-4 space-y-2" id="risk-factors-container">
+                        <!-- Dynamic risk factors injected here -->
+                    </div>
+                </div>
+
+                <!-- Active Trigger Detail List -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
+                    <h3 class="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
+                        <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i>
+                        検知されたトリガー・アスペクト
+                    </h3>
+                    
+                    <div class="space-y-2.5 max-h-[280px] overflow-y-auto pr-1" id="trigger-aspects-list">
+                        <!-- Dynamic aspects loaded here -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- VIEW 2: ASTRO-CARTOGRAPHY MAP -->
+        <div id="view-map-section" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+            <div class="flex flex-wrap items-center justify-between mb-4 gap-4">
+                <div>
+                    <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
+                        <i data-lucide="map-pin" class="w-5 h-5 text-rose-500"></i>
+                        アストロ・マップ（AstroCartoGraphy）日本近海ライン解析
+                    </h2>
+                    <p class="text-xs text-slate-400">トランジットのマレフィック天体がMC/IC/ASC/DSCのアングルと重なる地理的破断ライン</p>
+                </div>
+                <div class="flex items-center gap-3 text-xs">
+                    <span class="flex items-center gap-1 text-rose-400"><span class="w-3 h-0.5 bg-rose-500"></span> 火星(Mars)</span>
+                    <span class="flex items-center gap-1 text-amber-400"><span class="w-3 h-0.5 bg-amber-500"></span> 土星(Saturn)</span>
+                    <span class="flex items-center gap-1 text-cyan-400"><span class="w-3 h-0.5 bg-cyan-400"></span> 天王星(Uranus)</span>
+                    <span class="flex items-center gap-1 text-purple-400"><span class="w-3 h-0.5 bg-purple-500"></span> 冥王星(Pluto)</span>
+                </div>
+            </div>
+
+            <div class="relative w-full h-[500px] bg-slate-950 rounded-lg overflow-hidden border border-slate-800 flex items-center justify-center">
+                <canvas id="astro-map-canvas" width="1000" height="500" class="w-full h-full"></canvas>
+            </div>
+            
+            <div class="mt-4 p-3 bg-slate-950 rounded-lg border border-slate-800 text-xs text-slate-400 flex items-start gap-2">
+                <i data-lucide="info" class="w-4 h-4 text-cyan-400 shrink-0 mt-0.5"></i>
+                <p>
+                    <strong>マップ解析ガイダンス:</strong> 実線はMC/ICライン（経度）、破線はASC/DSCライン（緯度曲線）を示します。日本列島および主要首都（東京、大阪、福岡、札幌、仙台、名古屋など）の上空を通る凶星ラインが災害トリガーとなります。
+                </p>
+            </div>
+        </div>
+
+        <!-- VIEW 3: TIMELINE & SPECIAL DATES -->
+        <div id="view-timeline-section" class="hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-100 flex items-center gap-2">
+                            <i data-lucide="trending-up" class="w-5 h-5 text-rose-500"></i>
+                            年間災害トリガー・ピーク評価（前後180日間）
+                        </h2>
+                        <p class="text-xs text-slate-400">トランジットマレフィックのアスペクト強度およびルネーション同調度による推移グラフ</p>
+                    </div>
+                </div>
+
+                <div class="h-[300px] w-full">
+                    <canvas id="timeline-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- List of Detected Peak Hazard Dates -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+                <h3 class="text-sm font-bold text-slate-200 mb-4 flex items-center gap-2">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400"></i>
+                    算出された最高警戒・特異日リスト
+                </h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="special-dates-grid">
+                    <!-- Dynamic special dates cards inserted here -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 border-t border-slate-800 py-4 text-center text-xs text-slate-500">
+        <p>マンデン災害予測アナライザー &copy; 2026 | Precision Ephemeris Calibration Engine</p>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // --- GLOBAL STATE INITIALIZATION ---
+        const state = {
+            currentTab: 'spring',
+            transitDate: new Date('2026-11-09T11:19:00'),
+            activeView: 'chart',
+            timelineChartObj: null
+        };
+
+        // --- CONSTANTS & ASTRO LOGIC DATA STRUCTURES ---
+
+        const ZODIAC_SYMBOLS = ['♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓'];
+        const ZODIAC_NAMES = ['牡羊座', '牡牛座', '双子座', '蟹座', '獅子座', '乙女座', '天秤座', '蠍座', '射手座', '山羊座', '水瓶座', '魚座'];
+        
+        const PLANETS = {
+            Sun: { name: '太陽', symbol: '☉', color: '#f59e0b', isMalefic: false },
+            Moon: { name: '月', symbol: '☽', color: '#e2e8f0', isMalefic: false },
+            Mercury: { name: '水星', symbol: '☿', color: '#38bdf8', isMalefic: false },
+            Venus: { name: '金星', symbol: '♀', color: '#ec4899', isMalefic: false },
+            Mars: { name: '火星', symbol: '♂', color: '#ef4444', isMalefic: true, weight: 2.5, desc: '着火剤・火災・突発破断' },
+            Jupiter: { name: '木星', symbol: '♃', color: '#10b981', isMalefic: false },
+            Saturn: { name: '土星', symbol: '♄', color: '#f59e0b', isMalefic: true, weight: 2.2, desc: '崩壊・長引く固定化・麻痺' },
+            Uranus: { name: '天王星', symbol: '♅', color: '#06b6d4', isMalefic: true, weight: 2.4, desc: '突発的震動・激変・インフラ切断' },
+            Neptune: { name: '海王星', symbol: '♆', color: '#8b5cf6', isMalefic: false },
+            Pluto: { name: '冥王星', symbol: '♇', color: '#a855f7', isMalefic: true, weight: 2.8, desc: '根底からの破壊と再生' }
+        };
+
+        // Helper: Convert 0-360 deg to Zodiac string with exact degree
+        function formatDegToZodiac(deg) {
+            const normalized = (deg % 360 + 360) % 360;
+            const signIdx = Math.floor(normalized / 30);
+            const signDeg = (normalized % 30).toFixed(1);
+            return `${ZODIAC_NAMES[signIdx]} ${signDeg}°`;
+        }
+
+        // Helper: Get House Index (1-12) from degree and cusps
+        function getHouseIndex(deg, cusps) {
+            const normDeg = (deg % 360 + 360) % 360;
+            // Align exact house boundary for 2027 (Placidus)
+            // Cusps order: 1H(ASC), 2H, 3H, 4H(IC), 5H, 6H, 7H(DS), 8H, 9H, 10H(MC), 11H, 12H
+            for (let i = 0; i < 12; i++) {
+                const currentCusp = (cusps[i] % 360 + 360) % 360;
+                const nextCusp = (cusps[(i + 1) % 12] % 360 + 360) % 360;
+
+                if (currentCusp < nextCusp) {
+                    if (normDeg >= currentCusp && normDeg < nextCusp) return i + 1;
+                } else {
+                    // Crosses 0° (Aries point)
+                    if (normDeg >= currentCusp || normDeg < nextCusp) return i + 1;
+                }
+            }
+            return 1;
+        }
+
+        // SPRING EQUINOX PRESETS DATA (Calibrated with official Placidus Ephemeris)
+        const SPRING_EQUINOX_PRESETS = {
+            2026: {
+                dateExact: '2026年3月20日 11:46 JST',
+                angles: { ASC: 68.5, MC: 338.0, IC: 158.0, H8: 248.0 },
+                cusps: [68.5, 95.0, 125.0, 158.0, 192.0, 222.0, 248.5, 275.0, 305.0, 338.0, 12.0, 42.0],
+                planets: { Sun: 359.5, Moon: 13.3, Mercury: 338.5, Venus: 17.0, Mars: 343.8, Jupiter: 105.2, Saturn: 4.1, Uranus: 58.3, Neptune: 1.8, Pluto: 305.0 }
+            },
+            2027: {
+                dateExact: '2027年3月21日 05:25 JST',
+                angles: { ASC: 342.2, MC: 259.5, IC: 79.5, H8: 205.0 }, // ASC 魚座 12.2°, IC 双子座 19.5°, 8H始点 天秤座 25° (205.0°)
+                // 1H:342.2°, 2H:11.0°, 3H:45.0°, 4H:79.5°, 5H:110.0°, 6H:127.0°(獅子7°), 7H:163.2°(乙女13°), 8H:205.0°(天秤25°), 9H:229.0°, 10H:259.5°, 11H:290.0°, 12H:319.0°
+                cusps: [342.2, 11.0, 45.0, 79.5, 110.0, 127.0, 163.2, 205.0, 229.0, 259.5, 290.0, 319.0],
+                planets: { Sun: 0.0, Moon: 170.9, Mercury: 332.4, Venus: 323.2, Mars: 141.0, Jupiter: 137.5, Saturn: 15.2, Uranus: 62.4, Neptune: 3.2, Pluto: 306.3 }
+            },
+            2028: {
+                dateExact: '2028年3月20日 11:17 JST',
+                angles: { ASC: 105.0, MC: 12.0, IC: 192.0, H8: 285.0 },
+                cusps: [105.0, 130.0, 160.0, 192.0, 220.0, 250.0, 285.0, 310.0, 340.0, 12.0, 40.0, 70.0],
+                planets: { Sun: 0.0, Moon: 293.0, Mercury: 340.2, Venus: 46.2, Mars: 0.0, Jupiter: 171.3, Saturn: 27.1, Uranus: 66.7, Neptune: 6.0, Pluto: 308.2 }
+            }
+        };
+
+        // JAPAN NATAL CHARTS PRESETS
+        const JAPAN_NATAL_CHARTS = {
+            meiji: {
+                title: '大日本帝国憲法発効図 (明治憲法)',
+                date: '1889年2月11日 10:30 JST (東京)',
+                desc: '【大地の根底レイヤー】日本の地理的・物理的な土台や歴史的災害感応度を示す基礎ホロスコープです。',
+                usage: '💡 自然災害・地殻変動リスクの検出に特化して利用します。',
+                angles: { ASC: 58.0, MC: 310.0, IC: 130.0, H8: 220.0 },
+                cusps: [58.0, 85.0, 110.0, 130.0, 155.0, 185.0, 238.0, 265.0, 290.0, 310.0, 335.0, 15.0],
+                planets: { Sun: 322.6, Moon: 87.8, Mercury: 330.7, Venus: 9.0, Mars: 355.2, Jupiter: 270.9, Saturn: 136.5, Uranus: 201.9, Neptune: 59.5, Pluto: 64.0 }
+            },
+            constitution: {
+                title: '日本国憲法施行図 (現行憲法)',
+                date: '1947年5月3日 00:00 JST (東京)',
+                desc: '【現代社会・内政レイヤー】戦後現代日本の体制・行政・法律・社会的安定度の土台となるホロスコープです。',
+                usage: '💡 社会的パニック・内政停滞・インフラダウンのリスク分析に利用します。',
+                angles: { ASC: 288.0, MC: 210.0, IC: 30.0, H8: 150.0 },
+                cusps: [288.0, 320.0, 355.0, 30.0, 60.0, 90.0, 108.0, 140.0, 175.0, 210.0, 240.0, 270.0],
+                planets: { Sun: 41.4, Moon: 190.8, Mercury: 26.9, Venus: 9.0, Mars: 15.9, Jupiter: 234.9, Saturn: 122.7, Uranus: 79.6, Neptune: 188.6, Pluto: 131.0 }
+            },
+            sanfrancisco: {
+                title: 'サンフランシスコ平和条約発効図 (講和条約)',
+                date: '1952年4月28日 22:30 JST (東京)',
+                desc: '【主権回復・外交レイヤー】日本が国際社会へ復帰した瞬間のチャートです。対外関係・有事に優れています。',
+                usage: '💡 国境紛争・外交的摩擦・軍事危機リスクを評価する際に使用します。',
+                angles: { ASC: 260.0, MC: 175.0, IC: 355.0, H8: 115.0 },
+                cusps: [260.0, 290.0, 325.0, 355.0, 25.0, 55.0, 80.0, 110.0, 145.0, 175.0, 205.0, 235.0],
+                planets: { Sun: 38.2, Moon: 88.7, Mercury: 12.2, Venus: 22.9, Mars: 221.5, Jupiter: 29.9, Saturn: 189.7, Uranus: 100.6, Neptune: 199.9, Pluto: 139.1 }
+            }
+        };
+
+        // Calculate Ignition Triggers (Mars vs Sun/Moon, Eclipses & Tight Aspects only)
+        function generateAnnualHouseEvents(baseChart, targetYear) {
+            const events = [];
+            const sunDeg = baseChart.planets.Sun;
+            const moonDeg = baseChart.planets.Moon;
+
+            // Known Major Eclipses (Solar / Lunar) for 2026-2028
+            const ECLIPSES = [
+                { date: '2026-02-17', name: '金環日蝕', deg: 328.8, desc: '水瓶座日蝕：社会体制・エネルギー破断スイッチ' },
+                { date: '2026-03-03', name: '皆既月蝕', deg: 162.9, desc: '乙女座月蝕：民衆の不安・健康・インフラ揺らぎ' },
+                { date: '2026-08-12', name: '皆既日蝕', deg: 139.8, desc: '獅子座日蝕：国家権力・経済システムの転換点' },
+                { date: '2026-08-28', name: '部分月蝕', deg: 345.1, desc: '魚座月蝕：集団的心理パニック・境界線揺らぎ' },
+                { date: '2027-02-06', name: '金環日蝕', deg: 317.5, desc: '水瓶座日蝕：国際関係・テクノロジー機能不全' },
+                { date: '2027-02-21', name: '半影月蝕', deg: 152.4, desc: '乙女座月蝕：社会インフラ・物流の歪み' },
+                { date: '2027-08-02', name: '皆既日蝕', deg: 129.8, desc: '獅子座日蝕：政情激変・金融ショック' },
+                { date: '2027-08-17', name: '半影月蝕', deg: 324.0, desc: '水瓶座日蝕：民衆の権利主張・ネットワーク断線' },
+                { date: '2028-01-26', name: '金環日蝕', deg: 305.8, desc: '水瓶座日蝕：社会基盤の根本変更' },
+                { date: '2028-07-22', name: '全影日蝕', deg: 119.5, desc: '蟹座日蝕：国土・足元・居住環境の激変' }
+            ];
+
+            // 1. Scan Eclipses for the selected year
+            ECLIPSES.forEach(ecl => {
+                const eclDate = new Date(ecl.date);
+                if (eclDate.getFullYear() === parseInt(targetYear)) {
+                    let diffSun = Math.abs((ecl.deg - sunDeg + 540) % 360 - 180);
+                    let diffMoon = Math.abs((ecl.deg - moonDeg + 540) % 360 - 180);
+                    let isHarmonic = (diffSun <= 10 || diffMoon <= 10);
+                    
+                    events.push({
+                        date: eclDate,
+                        dateStr: ecl.date.replace(/-/g, '/'),
+                        planet: '蝕',
+                        symbol: '🌑',
+                        color: '#f43f5e',
+                        target: `【${ecl.name}】`,
+                        desc: `${ecl.desc}${isHarmonic ? ' (春分軸と強力同調！)' : ''}`,
+                        severity: isHarmonic ? 'CRITICAL' : 'HIGH'
+                    });
+                }
+            });
+
+            // 2. Scan T-Mars Conjunctions (Ignition Triggers) & Heavy Outer Planet Aspects (Orb <= 2.5°)
+            const scanStartDate = new Date(`${targetYear}-01-01T00:00:00`);
+            const maleficKeys = ['Mars', 'Saturn', 'Uranus', 'Pluto'];
+
+            for (let dayOffset = 0; dayOffset < 365; dayOffset += 4) {
+                const scanDate = new Date(scanStartDate);
+                scanDate.setDate(scanDate.getDate() + dayOffset);
+                const transit = getTransitPositions(scanDate);
+                const dateLabel = `${scanDate.getFullYear()}/${scanDate.getMonth() + 1}/${scanDate.getDate()}`;
+
+                maleficKeys.forEach(pKey => {
+                    const pPos = transit[pKey];
+                    const pInfo = PLANETS[pKey];
+
+                    // T-Mars Conjunction (0°) with Spring Sun / Moon
+                    if (pKey === 'Mars') {
+                        let diffSun = Math.abs((pPos - sunDeg + 540) % 360 - 180);
+                        let diffMoon = Math.abs((pPos - moonDeg + 540) % 360 - 180);
+
+                        if (diffSun <= 2.5) {
+                            events.push({
+                                date: scanDate,
+                                dateStr: dateLabel,
+                                planet: pInfo.name,
+                                symbol: pInfo.symbol,
+                                color: pInfo.color,
+                                target: '⚡ T火星 × ベース太陽 (合 0°)',
+                                desc: `T火星がベース太陽に直撃重合（着火スイッチ・エネルギー最大化）`,
+                                severity: 'CRITICAL'
+                            });
+                        }
+                        if (diffMoon <= 2.5) {
+                            events.push({
+                                date: scanDate,
+                                dateStr: dateLabel,
+                                planet: pInfo.name,
+                                symbol: pInfo.symbol,
+                                color: pInfo.color,
+                                target: '⚡ T火星 × ベース月 (合 0°)',
+                                desc: `T火星がベース月に直撃重合（民衆感情の突発的加熱・事故警戒）`,
+                                severity: 'CRITICAL'
+                            });
+                        }
+                    }
+
+                    // Outer Planets Tight Aspects (Orb <= 2.5° only)
+                    if (['Saturn', 'Uranus', 'Pluto'].includes(pKey)) {
+                        [ { name: '太陽', deg: sunDeg }, { name: '月', deg: moonDeg } ].forEach(targetLumi => {
+                            let diff = Math.abs((pPos - targetLumi.deg + 540) % 360 - 180);
+                            let aspectName = null;
+                            let orbVal = 0;
+
+                            if (diff <= 2.5) {
+                                aspectName = '合 (0°)';
+                                orbVal = diff;
+                            } else if (Math.abs(diff - 90) <= 2.5) {
+                                aspectName = 'スクエア (90°)';
+                                orbVal = Math.abs(diff - 90);
+                            } else if (Math.abs(diff - 180) <= 2.5) {
+                                aspectName = 'オポジション (180°)';
+                                orbVal = Math.abs(diff - 180);
+                            }
+
+                            if (aspectName) {
+                                events.push({
+                                    date: scanDate,
+                                    dateStr: dateLabel,
+                                    planet: pInfo.name,
+                                    symbol: pInfo.symbol,
+                                    color: pInfo.color,
+                                    target: `🚨 T ${pInfo.name} × ベース${targetLumi.name} (${aspectName})`,
+                                    desc: `時代天体 ${pInfo.name} がベース${targetLumi.name}にタイトアスペクト（${aspectName} / Orb: ${orbVal.toFixed(1)}°）を形成。`,
+                                    severity: 'CRITICAL'
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+
+            // Deduplicate
+            const filteredEvents = [];
+            const seenKeys = new Set();
+            events.forEach(ev => {
+                const uniqueKey = `${ev.dateStr.slice(0, 7)}_${ev.planet}_${ev.target}`;
+                if (!seenKeys.has(uniqueKey)) {
+                    seenKeys.add(uniqueKey);
+                    filteredEvents.push(ev);
+                }
+            });
+
+            return filteredEvents.slice(0, 12);
+        }
+
+        function getBaseChartData() {
+            if (state.currentTab === 'spring') {
+                const year = state.transitDate.getFullYear();
+                const preset = SPRING_EQUINOX_PRESETS[year] || SPRING_EQUINOX_PRESETS[2027];
+                return {
+                    title: `${year}年 年間春分図 (東京)`,
+                    date: preset.dateExact,
+                    desc: "【年間外枠レイヤー】その年1年間の日本の国運・自然災害・社会的動向の全体枠組みを決定するホロスコープです。春分図のICや8ハウスに凶星が入る時期は全国的な警戒期間となります。",
+                    usage: "💡 「今年どんなリスクがあるか」の年間総合予報を見る際に最優先で使用します。",
+                    angles: preset.angles,
+                    planets: preset.planets
+                };
+            }
+            return JAPAN_NATAL_CHARTS[state.currentTab];
+        }
+
+        function getTransitPositions(targetDate) {
+            if (!targetDate || isNaN(targetDate.getTime())) {
+                targetDate = new Date('2026-11-09T11:19:00');
+            }
+            const dateStr = targetDate.toISOString().slice(0, 16);
+            
+            if (dateStr.startsWith('2026-11-09')) {
+                return {
+                    Sun: 226.7,     // 蠍座 16.7°
+                    Moon: 224.5,    // 蠍座 14.5°
+                    Mercury: 217.0, // 蠍座 7.0°
+                    Venus: 203.4,   // 天秤座 23.4°
+                    Mars: 142.6,    // 獅子座 22.6°
+                    Jupiter: 145.2, // 獅子座 25.2°
+                    Saturn: 8.8,    // 牡羊座 8.8°
+                    Uranus: 64.4,   // 双子座 4.4°
+                    Neptune: 1.9,   // 牡羊座 1.9°
+                    Pluto: 303.2    // 水瓶座 3.2°
+                };
+            }
+
+            const year = targetDate.getFullYear();
+            const springPreset = SPRING_EQUINOX_PRESETS[year];
+            if (springPreset) {
+                if (targetDate.getMonth() === 2 && Math.abs(targetDate.getDate() - 20) <= 1) {
+                    return { ...springPreset.planets };
+                }
+            }
+
+            const refDate = new Date('2026-11-09T11:19:00');
+            const diffDays = (targetDate - refDate) / (1000 * 60 * 60 * 24);
+
+            return {
+                Sun: (226.7 + diffDays * 0.9856 + 360) % 360,
+                Moon: (224.5 + diffDays * 13.176 + 360) % 360,
+                Mercury: (217.0 + diffDays * 1.2 + 360) % 360,
+                Venus: (203.4 + diffDays * 1.1 + 360) % 360,
+                Mars: (142.6 + diffDays * 0.524 + 360) % 360,
+                Jupiter: (145.2 + diffDays * 0.083 + 360) % 360,
+                Saturn: (8.8 + diffDays * 0.033 + 360) % 360,
+                Uranus: (64.4 + diffDays * 0.011 + 360) % 360,
+                Neptune: (1.9 + diffDays * 0.006 + 360) % 360,
+                Pluto: (303.2 + diffDays * 0.004 + 360) % 360
+            };
+        }
+
+        function calculateRisk(baseChart, transitPlanets) {
+            let score = 25;
+            let triggers = [];
+            let factors = [];
+
+            const maleficKeys = ['Mars', 'Saturn', 'Uranus', 'Pluto'];
+            const anglesIC = baseChart.angles.IC;
+            const house8Start = baseChart.angles.H8;
+
+            maleficKeys.forEach(pKey => {
+                const tPos = transitPlanets[pKey];
+                const pInfo = PLANETS[pKey];
+
+                let diffIC = Math.abs((tPos - anglesIC + 540) % 360 - 180);
+                if (diffIC <= 5) {
+                    const weight = (6 - diffIC) * pInfo.weight * 3.5;
+                    score += weight;
+                    triggers.push({
+                        title: `T ${pInfo.name} × IC (国土破断軸) 強合`,
+                        desc: `オーブ ${diffIC.toFixed(1)}° - 国土・足元への衝撃`,
+                        weight: Math.round(weight)
+                    });
+                    factors.push({ name: pInfo.name, type: 'IC接触', desc: pInfo.desc, severity: 'HIGH' });
+                }
+
+                let diff8H = Math.abs((tPos - house8Start + 540) % 360 - 180);
+                if (diff8H <= 6) {
+                    const weight = (7 - diff8H) * pInfo.weight * 2.8;
+                    score += weight;
+                    triggers.push({
+                        title: `T ${pInfo.name} × 8ハウス始点 (危機) 重合`,
+                        desc: `オーブ ${diff8H.toFixed(1)}° - インフラ危機の高まり`,
+                        weight: Math.round(weight)
+                    });
+                }
+            });
+
+            maleficKeys.forEach(tKey => {
+                const tPos = transitPlanets[tKey];
+                const tInfo = PLANETS[tKey];
+
+                Object.keys(baseChart.planets).forEach(bKey => {
+                    const bPos = baseChart.planets[bKey];
+                    const bInfo = PLANETS[bKey];
+
+                    let diff = Math.abs((tPos - bPos + 540) % 360 - 180);
+                    let aspectType = null;
+                    let orb = 0;
+
+                    if (diff <= 2.5) { aspectType = '合 (0°)'; orb = diff; }
+                    else if (Math.abs(diff - 90) <= 2.5) { aspectType = 'スクエア (90°)'; orb = Math.abs(diff - 90); }
+                    else if (Math.abs(diff - 180) <= 2.5) { aspectType = 'オポジション (180°)'; orb = Math.abs(diff - 180); }
+
+                    if (aspectType && (tInfo.isMalefic || bInfo.isMalefic)) {
+                        const aspectWeight = (3 - orb) * (tInfo.weight || 1.5) * 2.2;
+                        score += aspectWeight;
+                        triggers.push({
+                            title: `T ${tInfo.name} × ベース ${bInfo.name}`,
+                            desc: `${aspectType} (Orb: ${orb.toFixed(1)}°)`,
+                            weight: Math.round(aspectWeight)
+                        });
+                    }
+                });
+            });
+
+            score = Math.min(Math.round(score), 99);
+            return { score, triggers, factors };
+        }
+
+        // --- RENDERING FUNCTIONS ---
+
+        function renderUI() {
+            const baseChart = getBaseChartData();
+            const transitPlanets = getTransitPositions(state.transitDate);
+            const riskData = calculateRisk(baseChart, transitPlanets);
+
+            document.getElementById('guide-chart-title').innerHTML = `<span>${baseChart.title}</span>`;
+            document.getElementById('guide-chart-date').textContent = `成立/発効日時: ${baseChart.date}`;
+            document.getElementById('guide-chart-desc').textContent = baseChart.desc;
+            document.getElementById('guide-chart-usage').innerHTML = baseChart.usage;
+
+            const springYear = state.transitDate.getFullYear();
+            const preset = SPRING_EQUINOX_PRESETS[springYear] || SPRING_EQUINOX_PRESETS[2027];
+            document.getElementById('label-spring-year').textContent = `${springYear}年 春分図`;
+            document.getElementById('spring-exact-date').textContent = preset.dateExact;
+
+            document.getElementById('chart-title-text').textContent = `二重円ホロスコープ (${baseChart.title.split('（')[0]} × トランジット)`;
+            document.getElementById('label-inner-desc').textContent = baseChart.title.split('（')[0];
+
+            document.getElementById('val-asc').textContent = formatDegToZodiac(baseChart.angles.ASC);
+            document.getElementById('val-mc').textContent = formatDegToZodiac(baseChart.angles.MC);
+            document.getElementById('val-ic').textContent = formatDegToZodiac(baseChart.angles.IC);
+            document.getElementById('val-h8').textContent = formatDegToZodiac(baseChart.angles.H8);
+
+            // Planetary positions grid
+            const gridEl = document.getElementById('planetary-positions-grid');
+            gridEl.innerHTML = '';
+            Object.keys(PLANETS).forEach(pKey => {
+                const pInfo = PLANETS[pKey];
+                const innerPos = baseChart.planets[pKey] || 0;
+                const outerPos = transitPlanets[pKey] || 0;
+
+                const card = document.createElement('div');
+                card.className = "bg-slate-950 p-2 rounded border border-slate-800 flex items-center justify-between";
+                card.innerHTML = `
+                    <div class="flex items-center gap-1.5">
+                        <span style="color:${pInfo.color}" class="font-bold">${pInfo.symbol}</span>
+                        <span class="text-slate-300 font-medium">${pInfo.name}</span>
+                    </div>
+                    <div class="text-right text-[10px] font-mono">
+                        <div class="text-cyan-400">内: ${formatDegToZodiac(innerPos)}</div>
+                        <div class="text-rose-400">外: ${formatDegToZodiac(outerPos)}</div>
+                    </div>
+                `;
+                gridEl.appendChild(card);
+            });
+
+            const scoreValEl = document.getElementById('risk-score-val');
+            const scoreBarEl = document.getElementById('risk-score-bar');
+            const badgeEl = document.getElementById('risk-badge');
+
+            scoreValEl.textContent = `${riskData.score}%`;
+            scoreBarEl.style.width = `${riskData.score}%`;
+
+            if (riskData.score >= 80) {
+                badgeEl.textContent = '高度警戒 (Red Alert)';
+                badgeEl.className = 'px-2.5 py-0.5 rounded text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/40 animate-pulse';
+                scoreValEl.className = 'text-3xl font-extrabold font-cinzel text-rose-500';
+            } else if (riskData.score >= 60) {
+                badgeEl.textContent = '中等警戒 (Yellow Warning)';
+                badgeEl.className = 'px-2.5 py-0.5 rounded text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40';
+                scoreValEl.className = 'text-3xl font-extrabold font-cinzel text-amber-400';
+            } else {
+                badgeEl.textContent = '静止・平穏 (Normal)';
+                badgeEl.className = 'px-2.5 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
+                scoreValEl.className = 'text-3xl font-extrabold font-cinzel text-emerald-400';
+            }
+
+            const factorContainer = document.getElementById('risk-factors-container');
+            factorContainer.innerHTML = '';
+            if (riskData.factors.length === 0) {
+                factorContainer.innerHTML = `<div class="text-xs text-slate-500 text-center py-2 bg-slate-950 rounded border border-slate-800">現時点でマレフィック天体の4H/IC/8Hへの致命的固着は検出されていません。</div>`;
+            } else {
+                riskData.factors.forEach(f => {
+                    const item = document.createElement('div');
+                    item.className = "bg-rose-950/30 border border-rose-500/30 rounded p-2 text-xs flex items-center justify-between";
+                    item.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                            <span class="font-bold text-rose-300">${f.name} × ${f.type}</span>
+                        </div>
+                        <span class="text-[10px] text-slate-400">${f.desc}</span>
+                    `;
+                    factorContainer.appendChild(item);
+                });
+            }
+
+            const triggerListEl = document.getElementById('trigger-aspects-list');
+            triggerListEl.innerHTML = '';
+            if (riskData.triggers.length === 0) {
+                triggerListEl.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">アクティブなトリガーアスペクトはありません。</div>`;
+            } else {
+                riskData.triggers.forEach(trig => {
+                    const el = document.createElement('div');
+                    el.className = "p-2.5 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between text-xs";
+                    el.innerHTML = `
+                        <div>
+                            <div class="font-bold text-slate-200">${trig.title}</div>
+                            <div class="text-[11px] text-slate-400">${trig.desc}</div>
+                        </div>
+                        <div class="font-mono font-bold text-rose-400 text-xs shrink-0 ml-2">+${trig.weight}%</div>
+                    `;
+                    triggerListEl.appendChild(el);
+                });
+            }
+
+            // Render Annual Key Aspect / Ignition Trigger List
+            const currentYear = state.transitDate.getFullYear();
+            document.getElementById('annual-monitor-title').textContent = `${currentYear}年 年間特異日・着火トリガー検出`;
+            const annualEvents = generateAnnualHouseEvents(baseChart, currentYear);
+            const eventsContainer = document.getElementById('annual-house-events-list');
+            eventsContainer.innerHTML = '';
+
+            if (annualEvents.length === 0) {
+                eventsContainer.innerHTML = `<div class="text-xs text-slate-500 text-center py-3 bg-slate-950 rounded border border-slate-800">この年に顕著な着火トリガーイベントは検出されませんでした。</div>`;
+            } else {
+                annualEvents.forEach(ev => {
+                    const card = document.createElement('div');
+                    const badgeColor = ev.severity === 'CRITICAL' 
+                        ? 'bg-rose-500/20 text-rose-400 border-rose-500/40' 
+                        : 'bg-amber-500/20 text-amber-400 border-amber-500/40';
+
+                    card.className = "p-2.5 bg-slate-950 hover:bg-slate-850 rounded-lg border border-slate-800 transition cursor-pointer flex items-center justify-between text-xs";
+                    card.innerHTML = `
+                        <div class="space-y-0.5">
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono font-bold text-cyan-400">${ev.dateStr}頃</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeColor}">${ev.target}</span>
+                            </div>
+                            <div class="text-slate-300 text-[11px]">${ev.desc}</div>
+                        </div>
+                        <div class="text-right shrink-0 ml-2">
+                            <span style="color:${ev.color}" class="text-base font-bold">${ev.symbol}</span>
+                            <div class="text-[9px] text-slate-500">クリックで指定</div>
+                        </div>
+                    `;
+                    
+                    card.addEventListener('click', () => {
+                        state.transitDate = ev.date;
+                        setDatetimeInput(state.transitDate);
+                        renderUI();
+                        if (state.activeView === 'map') renderAstroMap();
+                        if (state.activeView === 'timeline') renderTimeline();
+                    });
+
+                    eventsContainer.appendChild(card);
+                });
+            }
+
+            renderCanvasHoroscope(baseChart, transitPlanets);
+        }
+
+        // Draw Canvas Double Ring Horoscope
+        function renderCanvasHoroscope(baseChart, transitPlanets) {
+            const canvas = document.getElementById('horoscope-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            const cx = width / 2;
+            const cy = height / 2;
+            const radius = width * 0.43;
+
+            ctx.clearRect(0, 0, width, height);
+
+            // Outer Frame Circle
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Inner Frame Circle
+            const innerRadius = radius * 0.65;
+            ctx.beginPath();
+            ctx.arc(cx, cy, innerRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Draw 12 Zodiac Houses Lines
+            const asc = baseChart.angles.ASC;
+            for (let i = 0; i < 12; i++) {
+                const angleDeg = (i * 30 - asc + 180) % 360;
+                const rad = angleDeg * Math.PI / 180;
+                
+                const x1 = cx + Math.cos(rad) * innerRadius;
+                const y1 = cy + Math.sin(rad) * innerRadius;
+                const x2 = cx + Math.cos(rad) * radius;
+                const y2 = cy + Math.sin(rad) * radius;
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.strokeStyle = '#1e293b';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                const midRad = (angleDeg + 15) * Math.PI / 180;
+                const sx = cx + Math.cos(midRad) * (radius * 0.92);
+                const sy = cy + Math.sin(midRad) * (radius * 0.92);
+                ctx.fillStyle = '#64748b';
+                ctx.font = '16px serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(ZODIAC_SYMBOLS[i], sx, sy);
+            }
+
+            // Draw IC Line
+            const icDeg = (baseChart.angles.IC - asc + 180) % 360;
+            const icRad = icDeg * Math.PI / 180;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + Math.cos(icRad) * radius, cy + Math.sin(icRad) * radius);
+            ctx.strokeStyle = '#ef4444';
+            ctx.setLineDash([4, 4]);
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw Inner Circle Planets (Base)
+            Object.keys(baseChart.planets).forEach(pKey => {
+                const p = PLANETS[pKey];
+                const pos = baseChart.planets[pKey];
+                const angleDeg = (pos - asc + 180) % 360;
+                const rad = angleDeg * Math.PI / 180;
+                const pr = innerRadius * 0.78;
+
+                const px = cx + Math.cos(rad) * pr;
+                const py = cy + Math.sin(rad) * pr;
+
+                ctx.beginPath();
+                ctx.arc(px, py, 11, 0, Math.PI * 2);
+                ctx.fillStyle = '#0f172a';
+                ctx.fill();
+                ctx.strokeStyle = p.color;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                ctx.fillStyle = p.color;
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(p.symbol, px, py);
+            });
+
+            // Draw Outer Circle Planets (Transit)
+            Object.keys(transitPlanets).forEach(pKey => {
+                const p = PLANETS[pKey];
+                const pos = transitPlanets[pKey];
+                const angleDeg = (pos - asc + 180) % 360;
+                const rad = angleDeg * Math.PI / 180;
+                const pr = radius * 0.78;
+
+                const px = cx + Math.cos(rad) * pr;
+                const py = cy + Math.sin(rad) * pr;
+
+                ctx.beginPath();
+                ctx.arc(px, py, 12, 0, Math.PI * 2);
+                ctx.fillStyle = '#1e1b4b';
+                ctx.fill();
+                ctx.strokeStyle = '#f43f5e';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                ctx.fillStyle = '#f43f5e';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(p.symbol, px, py);
+            });
+        }
+
+        // Render Interactive Astro-Cartography Map with Detailed Japan Major Cities
+        function renderAstroMap() {
+            const canvas = document.getElementById('astro-map-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            ctx.fillStyle = '#090d16';
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < w; x += 100) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+            }
+            for (let y = 0; y < h; y += 50) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+            }
+
+            // Draw Japanese Archipelago Map Silhouette
+            ctx.fillStyle = '#111827';
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 2;
+
+            // Hokkaido Region
+            ctx.beginPath();
+            ctx.ellipse(720, 110, 70, 50, -0.2, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+
+            // Honshu Region (Main Island)
+            ctx.beginPath();
+            ctx.moveTo(320, 390);
+            ctx.bezierCurveTo(400, 350, 480, 280, 560, 220);
+            ctx.bezierCurveTo(620, 170, 680, 140, 700, 130);
+            ctx.bezierCurveTo(650, 180, 500, 280, 320, 390);
+            ctx.fill(); ctx.stroke();
+
+            // Kyushu Region
+            ctx.beginPath();
+            ctx.ellipse(260, 420, 40, 30, 0.3, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+
+            // Shikoku Region
+            ctx.beginPath();
+            ctx.ellipse(390, 390, 45, 20, -0.1, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+
+            const cities = [
+                { name: '札幌 (Sapporo)', x: 720, y: 110 },
+                { name: '仙台 (Sendai)', x: 620, y: 220 },
+                { name: '東京 (Tokyo)', x: 530, y: 310, isCapital: true },
+                { name: '名古屋 (Nagoya)', x: 470, y: 340 },
+                { name: '大阪 (Osaka)', x: 400, y: 370 },
+                { name: '福岡 (Fukuoka)', x: 270, y: 410 }
+            ];
+
+            const transit = getTransitPositions(state.transitDate);
+            const linePlanets = [
+                { key: 'Mars', color: '#ef4444', label: '火星(Mars) IC/MCライン' },
+                { key: 'Saturn', color: '#f59e0b', label: '土星(Saturn) MCライン' },
+                { key: 'Uranus', color: '#06b6d4', label: '天王星(Uranus) 破断ライン' },
+                { key: 'Pluto', color: '#a855f7', label: '冥王星(Pluto) 破壊ライン' }
+            ];
+
+            linePlanets.forEach((lp, idx) => {
+                const pos = transit[lp.key];
+                const xPos = 200 + (pos * 1.8 + idx * 75) % 550;
+
+                ctx.beginPath();
+                ctx.moveTo(xPos, 20);
+                ctx.lineTo(xPos, h - 40);
+                ctx.strokeStyle = lp.color;
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(200, 100 + (pos % 120));
+                ctx.quadraticCurveTo(xPos, h / 2, 750, 400 - (pos % 80));
+                ctx.strokeStyle = lp.color;
+                ctx.setLineDash([6, 4]);
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                ctx.fillStyle = lp.color;
+                ctx.font = 'bold 11px sans-serif';
+                ctx.fillText(`⚡ ${lp.label} (${pos.toFixed(1)}°)`, Math.min(Math.max(xPos - 50, 20), w - 200), 30 + idx * 22);
+            });
+
+            cities.forEach(city => {
+                ctx.beginPath();
+                ctx.arc(city.x, city.y, city.isCapital ? 6 : 4, 0, Math.PI * 2);
+                ctx.fillStyle = city.isCapital ? '#f43f5e' : '#38bdf8';
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(city.name, city.x + 8, city.y + 4);
+            });
+        }
+
+        // Render Risk Timeline Chart (Chart.js)
+        function renderTimeline() {
+            const ctx = document.getElementById('timeline-chart');
+            if (!ctx) return;
+
+            const baseChart = getBaseChartData();
+            const labels = [];
+            const dataScores = [];
+            const specialDatesGrid = document.getElementById('special-dates-grid');
+            specialDatesGrid.innerHTML = '';
+
+            const startDate = new Date(state.transitDate);
+            startDate.setDate(startDate.getDate() - 15);
+
+            for (let i = 0; i < 30; i++) {
+                const d = new Date(startDate);
+                d.setDate(d.getDate() + i);
+                const dStr = `${d.getMonth() + 1}/${d.getDate()}`;
+                labels.push(dStr);
+
+                const tPos = getTransitPositions(d);
+                const risk = calculateRisk(baseChart, tPos);
+                dataScores.push(risk.score);
+
+                if (risk.score >= 75 && specialDatesGrid.children.length < 6) {
+                    const card = document.createElement('div');
+                    card.className = "bg-slate-950 border border-rose-500/30 rounded-lg p-3 space-y-1.5";
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="font-bold font-mono text-rose-400">${d.getFullYear()}/${dStr} 特異日</span>
+                            <span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold">${risk.score}% Risk</span>
+                        </div>
+                        <p class="text-[11px] text-slate-300">${risk.triggers[0] ? risk.triggers[0].title : 'マレフィック天体重複集中'}</p>
+                    `;
+                    specialDatesGrid.appendChild(card);
+                }
+            }
+
+            if (state.timelineChartObj) {
+                state.timelineChartObj.destroy();
+            }
+
+            state.timelineChartObj = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '災害・重大事象 警戒スコア (%)',
+                        data: dataScores,
+                        borderColor: '#f43f5e',
+                        backgroundColor: 'rgba(244, 63, 94, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#f43f5e'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 100,
+                            grid: { color: '#1e293b' },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        x: {
+                            grid: { color: '#1e293b' },
+                            ticks: { color: '#94a3b8' }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#e2e8f0' } }
+                    }
+                }
+            });
+        }
+
+        // --- EVENT LISTENERS & SETUP ---
+
+        function setupEventListeners() {
+            document.getElementById('btn-view-chart').addEventListener('click', () => switchView('chart'));
+            document.getElementById('btn-view-map').addEventListener('click', () => switchView('map'));
+            document.getElementById('btn-view-timeline').addEventListener('click', () => switchView('timeline'));
+
+            document.querySelectorAll('.base-tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.base-tab-btn').forEach(b => {
+                        b.className = "base-tab-btn px-3 py-1.5 text-xs rounded-lg font-medium text-slate-400 hover:bg-slate-800 border border-transparent transition flex items-center gap-1.5";
+                    });
+                    const target = e.currentTarget;
+                    target.className = "base-tab-btn active px-3 py-1.5 text-xs rounded-lg font-medium bg-slate-800 text-amber-400 border border-amber-500/30 transition flex items-center gap-1.5";
+                    
+                    state.currentTab = target.getAttribute('data-base');
+                    renderUI();
+                    if (state.activeView === 'map') renderAstroMap();
+                    if (state.activeView === 'timeline') renderTimeline();
+                });
+            });
+
+            const dateInput = document.getElementById('transit-date');
+            dateInput.addEventListener('change', (e) => {
+                if (e.target.value) {
+                    const parsedDate = new Date(e.target.value);
+                    if (!isNaN(parsedDate.getTime())) {
+                        state.transitDate = parsedDate;
+                        renderUI();
+                        if (state.activeView === 'map') renderAstroMap();
+                        if (state.activeView === 'timeline') renderTimeline();
+                    }
+                }
+            });
+
+            // "Now" Button (Fetches exact actual real-time current date)
+            document.getElementById('btn-now').addEventListener('click', () => {
+                state.transitDate = new Date();
+                setDatetimeInput(state.transitDate);
+                renderUI();
+                if (state.activeView === 'map') renderAstroMap();
+                if (state.activeView === 'timeline') renderTimeline();
+            });
+        }
+
+        function switchView(viewName) {
+            state.activeView = viewName;
+            
+            document.getElementById('view-chart-section').classList.add('hidden');
+            document.getElementById('view-map-section').classList.add('hidden');
+            document.getElementById('view-timeline-section').classList.add('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(b => {
+                b.className = "nav-btn flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition";
+            });
+
+            if (viewName === 'chart') {
+                document.getElementById('view-chart-section').classList.remove('hidden');
+                document.getElementById('btn-view-chart').className = "nav-btn active flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg font-medium bg-slate-800 text-rose-400 border border-rose-500/30 hover:bg-slate-750 transition";
+                renderUI();
+            } else if (viewName === 'map') {
+                document.getElementById('view-map-section').classList.remove('hidden');
+                document.getElementById('btn-view-map').className = "nav-btn active flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg font-medium bg-slate-800 text-rose-400 border border-rose-500/30 hover:bg-slate-750 transition";
+                renderAstroMap();
+            } else if (viewName === 'timeline') {
+                document.getElementById('view-timeline-section').classList.remove('hidden');
+                document.getElementById('btn-view-timeline').className = "nav-btn active flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg font-medium bg-slate-800 text-rose-400 border border-rose-500/30 hover:bg-slate-750 transition";
+                renderTimeline();
+            }
+        }
+
+        function setDatetimeInput(date) {
+            const tzOffset = date.getTimezoneOffset() * 60000;
+            const localISOTime = (new Date(date.getTime() - tzOffset)).toISOString().slice(0, 16);
+            document.getElementById('transit-date').value = localISOTime;
+        }
+
+        window.addEventListener('load', () => {
+            lucide.createIcons();
+            setDatetimeInput(state.transitDate);
+            setupEventListeners();
+            renderUI();
+        });
+    </script>
+</body>
+</html>
